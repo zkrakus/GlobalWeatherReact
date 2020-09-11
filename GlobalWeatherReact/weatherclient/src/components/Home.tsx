@@ -7,6 +7,11 @@ import { CurrentCondition } from '../types/CurrentCondition';
 import { City } from '../types/City';
 import { CityMetaData } from '../types/CityMetaData';
 import { Constants } from '../Constants';
+import { ThunkDispatch } from 'redux-thunk';
+import { AppActions } from '../types/actions';
+import { bindActionCreators } from "redux";
+import { getCountries } from "../actions/actions";
+import { connect } from 'react-redux';
 
 interface IState {
     weather: Weather,
@@ -14,7 +19,11 @@ interface IState {
     city?: City
 };
 
-class Home extends React.Component {
+interface IDispatchProps {
+    getCountries: () => void;
+}
+
+class Home extends React.Component<IDispatchProps, IState> {
     public state: IState = {
         weather: {
             error: ""
@@ -31,117 +40,20 @@ class Home extends React.Component {
 
     async componentDidMount() {
         try {
-            const countries = await this.getCountries();
-            await this.setStateAsync({ countries: countries } as IState);
-
-            const lastCity = await this.getLastAccessedCity();
-            if (lastCity && lastCity.Key) {
-                await this.getCurrentConditions(lastCity);
-            }
+            this.props.getCountries();
         } catch (error) {
+
         }
     }
-
-    async getCountries(): Promise<Country[]> {
-        try {
-            const res = await fetch(`${Constants.locationAPIUrl}/countries?apikey=${Constants.apiKey}`);
-            return await res.json() as Country[];
-        } catch (error) {
-            console.log(error);
-            return [];
-        }
-    }
-
-    async getCity(searchText: string, countryCode: string): Promise<City> {
-        const res = await fetch(`${Constants.locationAPIUrl}/cities/${countryCode}/search?apikey=${Constants.apiKey}&q=${searchText}`);
-        const cities = await res.json() as City[];
-        if (cities.length > 0)
-            return cities[0];
-        return {} as City;
-    }
-
-    async getCurrentConditions(city: City) : Promise<Weather> {
-        try {
-            const res = await fetch(`${Constants.currentConditionsAPIUrl}/${city.Key}?apikey=${Constants.apiKey}`);
-            const currentConditions = await res.json() as CurrentCondition[];
-
-            if (currentConditions.length > 0) {
-                return new Weather(currentConditions[0], city);
-            }
-        } catch (error) {
-            console.log(error);
-        }
-        return {} as Weather;
-    }
-
-    getWeather = async (e: any, countryCode: string, searchText: string) => {
-        e.preventDefault();
-
-        if (!countryCode && !searchText) {
-            await this.setStateAsync({ weather: { error: "Please enter the value." } } as IState);
-            return;
-        }
-
-
-
-        try {
-            const city = await this.getCity(searchText, countryCode);
-
-            if (city.Key) {
-                await this.updateLastAccessedCity(city);
-                const weather = await this.getCurrentConditions(city);
-                await this.setStateAsync({
-                    weather: weather,
-                    city: city
-                } as IState);
-            }
-        } catch (err) {
-            await this.setStateAsync({ weather: { error: err } } as IState);
-        }
-    };
-
-    async updateLastAccessedCity(city: City) {
-        try {
-            const data = new CityMetaData(city);
-            await fetch(`${Constants.cityAPIUrl}`, {
-                method: 'post',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-                
-            });
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    async getLastAccessedCity(): Promise<City> {
-        try {
-            const res = await fetch(`${Constants.cityAPIUrl}`);
-            const data = await res.json() as CityMetaData;
-
-            return {
-                Key: data.id,
-                EnglishName: data.name,
-                Type: 'City',
-                Country: {
-                    ID: data.countryId,
-                    EnglishName: ''
-                }
-            } as City;
-        } catch (error) {
-            console.log(error);
-            return {} as City;
-        }
-    }
-
+   
     render() {
         return (
             <div className="container content panel">
                 <div className="container">
                     <div className="row">
                         <div className="form-container">
-                            <WeatherDetails weather={this.state.weather} />
-                            <Form getWeather={this.getWeather} countries={this.state.countries} />
+                            <WeatherDetails />
+                            <Form />
                         </div>
                     </div>
                 </div>
@@ -150,4 +62,8 @@ class Home extends React.Component {
     }
 }
 
-export default Home;
+const mapDispatchToProps = (dispatch: ThunkDispatch<any, any, AppActions>): IDispatchProps => ({
+    getCountries: bindActionCreators(getCountries, dispatch),
+});
+
+export default connect(null, mapDispatchToProps)(Home);

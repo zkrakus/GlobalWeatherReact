@@ -6,7 +6,7 @@ export class Weather {
     public location?: string;
     public weatherIcon?: any;
     public weatherText?: string;
-    public temperatureValue: number;
+    public temperatureValue?: number;
     public temperatureUnit?: string;
     public isDaytime?: boolean;
     public error?: string;
